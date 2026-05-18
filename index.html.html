@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envios Quotes</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚚</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ── TEMAS ── */
+[data-theme="dark"]{
+  --bg:#0e0e10;--surface:#17171a;--surface2:#1e1e22;--surface3:#26262c;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --text:#ffffff;--text2:#b0b0b8;--text3:#666670;
+  --th-bg:#1e1e22;--input-bg:#1e1e22;--th-text:#9a9aaa;
+}
+[data-theme="light"]{
+  --bg:#f4f4f6;--surface:#ffffff;--surface2:#f0f0f4;--surface3:#e4e4ea;
+  --border:rgba(0,0,0,0.08);--border2:rgba(0,0,0,0.14);
+  --text:#0a0a0c;--text2:#2a2a35;--text3:#55556a;
+  --th-bg:#f0f0f4;--input-bg:#ffffff;--th-text:#2a2a35;
+}
+:root{
+  --accent:#7c6fff;--accent2:#5a50cc;--accent-glow:rgba(124,111,255,0.15);
+  --green:#2dd4a0;--green-dim:rgba(45,212,160,0.12);--green-text:#1aaa7e;
+  --red:#f04444;--red-dim:rgba(240,68,68,0.11);--red-text:#c53030;
+  --amber:#d97706;--amber-dim:rgba(217,119,6,0.11);
+  --radius:12px;--radius-sm:8px;--radius-xs:5px;
+  --mono:'DM Mono',monospace;--mono-features:"zero" off;--sans:'DM Sans',sans-serif;
+}
+[data-theme="light"]{
+  --green-text:#0f7a5a;--red-text:#c0392b;--green-dim:rgba(45,212,160,0.10);--red-dim:rgba(240,68,68,0.09);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;transition:background .2s,color .2s}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px}
+
+/* ── AUTH ── */
+#auth-screen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:2rem}
+.auth-wrap{width:100%;max-width:380px}
+.auth-mark{display:flex;align-items:center;gap:10px;margin-bottom:2.5rem}
+.auth-icon{width:36px;height:36px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px}
+.auth-brand{font-size:15px;font-weight:600;letter-spacing:-.01em}
+.auth-title{font-size:24px;font-weight:600;letter-spacing:-.02em;margin-bottom:6px}
+.auth-sub{font-size:13px;color:var(--text2);margin-bottom:2rem}
+.auth-err{background:var(--red-dim);border:1px solid rgba(240,68,68,0.2);color:var(--red-text);font-size:13px;padding:10px 14px;border-radius:var(--radius-sm);margin-bottom:16px;display:none}
+
+/* ── FIELDS ── */
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.07em}
+input,select,textarea{width:100%;padding:10px 13px;font-size:14px;background:var(--input-bg);border:1px solid var(--border2);border-radius:var(--radius-sm);color:var(--text);font-family:var(--sans);transition:border-color .15s,box-shadow .15s;outline:none}
+[data-theme="dark"] input[type="date"],[data-theme="dark"] input[type="time"]{color-scheme:dark}
+[data-theme="light"] input[type="date"],[data-theme="light"] input[type="time"]{color-scheme:light}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+select option{background:var(--input-bg)}
+.btn{padding:10px 18px;font-size:13px;font-weight:500;border:1px solid var(--border2);border-radius:var(--radius-sm);cursor:pointer;background:var(--surface2);color:var(--text);font-family:var(--sans);transition:all .15s}
+.btn:hover{background:var(--surface3)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent2);border-color:var(--accent2)}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--text2)}
+.btn.ghost:hover{background:var(--surface2);color:var(--text)}
+.btn.danger{background:var(--red-dim);border-color:rgba(240,68,68,0.25);color:var(--red-text)}
+.btn-row{display:flex;gap:8px;justify-content:flex-end;margin-top:1.25rem}
+.btn-full{width:100%;justify-content:center}
+
+/* ── TOPBAR ── */
+#app-screen{display:none;min-height:100vh}
+.topbar{height:56px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;position:sticky;top:0;z-index:100}
+.tb-left{display:flex;align-items:center;gap:12px}
+.tb-icon{width:30px;height:30px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.tb-brand{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.tb-right{display:flex;align-items:center;gap:10px}
+.tb-name{font-size:13px;color:var(--text2);font-weight:500}
+.role-badge{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;letter-spacing:.04em;text-transform:uppercase}
+.role-badge.admin{background:var(--accent-glow);color:var(--accent);border:1px solid rgba(124,111,255,0.25)}
+.role-badge.user{background:var(--green-dim);color:var(--green-text);border:1px solid rgba(45,212,160,0.2)}
+.btn-out{font-size:12px;color:var(--text3);background:none;border:1px solid var(--border);border-radius:var(--radius-xs);padding:5px 10px;cursor:pointer;transition:all .15s;font-family:var(--sans)}
+.btn-out:hover{color:var(--red);border-color:rgba(240,68,68,0.3)}
+/* Theme toggle */
+.theme-toggle{background:none;border:1px solid var(--border2);border-radius:var(--radius-xs);padding:5px 9px;cursor:pointer;font-size:14px;line-height:1;transition:all .15s;color:var(--text2)}
+.theme-toggle:hover{background:var(--surface2)}
+
+/* ── LAYOUT ── */
+.layout{display:flex;min-height:calc(100vh - 56px)}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);padding:1rem .75rem;flex-shrink:0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto}
+.nav-grp{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;padding:.75rem .75rem .4rem}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;font-size:13px;color:var(--text2);cursor:pointer;border-radius:var(--radius-sm);transition:all .12s;margin-bottom:2px;font-weight:500}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--accent-glow);color:var(--accent)}
+.nav-ico{width:18px;text-align:center;font-size:14px}
+.main{flex:1;padding:2rem 2.5rem;max-width:1200px}
+.page{display:none;animation:fi .15s ease}
+.page.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.page-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1.75rem}
+.page-title{font-size:20px;font-weight:600;letter-spacing:-.02em}
+.page-sub{font-size:13px;color:var(--text2);margin-top:3px}
+
+/* ── CARDS ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem}
+.card-sec{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+/* ── SUGGESTION ── */
+.sug{display:none;border-radius:var(--radius-sm);margin-top:1.25rem;overflow:hidden;border:1px solid var(--border)}
+.sug-hdr{padding:10px 16px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.sug.ok .sug-hdr{background:var(--green-dim);color:var(--green-text)}
+.sug.bad .sug-hdr{background:var(--red-dim);color:var(--red-text)}
+.sug.neutral .sug-hdr{background:var(--surface2);color:var(--text2)}
+.sug-body{padding:14px 16px;background:var(--surface)}
+.sug-cells{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.sug-cell{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-xs);padding:10px 12px}
+.sug-cl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.sug-cv{font-size:13px;font-weight:600;color:var(--text)}
+.sug-cs{font-size:11px;color:var(--text2);margin-top:2px}
+.rl{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
+.pills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{font-size:11px;font-family:var(--mono);padding:3px 9px;border-radius:var(--radius-xs);border:1px solid var(--border2);color:var(--text2);background:var(--surface2)}
+.pill.semanal{background:var(--green-dim);color:var(--green-text);border-color:rgba(45,212,160,0.2)}
+.pill.quotes{background:var(--accent-glow);color:var(--accent);border-color:rgba(124,111,255,0.2)}
+.pill.missed{background:var(--red-dim);color:var(--red-text);border-color:rgba(240,68,68,0.2)}
+
+/* ── STATS ── */
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem 1.5rem;position:relative;overflow:hidden}
+.stat-card::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.stat-card.total::after{background:var(--accent)}
+.stat-card.ok::after{background:var(--green)}
+.stat-card.miss::after{background:var(--red)}
+.stat-n{font-size:32px;font-weight:600;letter-spacing:-.03em;font-family:var(--mono)}
+.stat-card.ok .stat-n{color:var(--green)}
+.stat-card.miss .stat-n{color:var(--red)}
+.stat-l{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-top:4px}
+
+/* ── TABLE ── */
+.filters{display:flex;gap:10px;margin-bottom:1rem;flex-wrap:wrap}
+.filters input,.filters select{width:auto;flex:1;min-width:150px}
+.tcard{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:10px 14px;font-size:10px;font-weight:600;color:var(--th-text);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);white-space:nowrap;background:var(--th-bg)}
+td{padding:11px 14px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--surface2)}
+/* Célula de 2 linhas (data + dia) */
+.td2{display:flex;flex-direction:column;gap:2px}
+.td2-main{font-size:13px;font-weight:500;color:var(--text)}
+.td2-sub{font-size:11px;color:var(--text3)}
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:3px 9px;border-radius:var(--radius-xs)}
+.badge.ok{background:var(--green-dim);color:var(--green-text)}
+.badge.miss{background:var(--red-dim);color:var(--red-text)}
+.badge.admin{background:var(--accent-glow);color:var(--accent)}
+.badge.user{background:var(--surface2);color:var(--text2);border:1px solid var(--border2)}
+.mono{font-family:var(--mono);font-feature-settings:var(--mono-features,"zero" off)}
+.empty{text-align:center;padding:3rem;color:var(--text3);font-size:13px}
+.loading{text-align:center;padding:2.5rem;color:var(--text3);font-size:13px}
+
+/* ── DESTINOS ── */
+.dest-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.dest-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.25rem;transition:border-color .15s}
+.dest-card:hover{border-color:var(--border2)}
+.dest-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:1rem}
+.dest-name{font-size:14px;font-weight:600}
+.dest-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:15px;padding:2px;transition:color .12s;font-family:var(--sans)}
+.dest-del:hover{color:var(--red)}
+.dest-tl{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.dest-tl.sem{color:var(--green-text)}
+.dest-tl.quo{color:var(--accent)}
+.dest-sec{margin-bottom:10px}
+
+/* ── DAY PICKER ── */
+.day-picker{display:flex;flex-wrap:wrap;gap:5px}
+.day-btn{font-size:12px;padding:5px 12px;border:1px solid var(--border2);border-radius:var(--radius-xs);cursor:pointer;background:var(--surface2);color:var(--text2);transition:all .12s;font-family:var(--sans)}
+.day-btn:hover{background:var(--surface3);color:var(--text)}
+.day-btn.sel-sem{background:var(--green-dim);border-color:rgba(45,212,160,0.3);color:var(--green-text);font-weight:500}
+.day-btn.sel-quo{background:var(--accent-glow);border-color:rgba(124,111,255,0.3);color:var(--accent);font-weight:500}
+
+/* ── LEGEND ── */
+.legend{display:flex;gap:16px;flex-wrap:wrap}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.ldot{width:8px;height:8px;border-radius:50%}
+
+/* ── MODAL ── */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-box{background:var(--surface);border:1px solid var(--border2);border-radius:var(--radius);padding:1.75rem 2rem;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:600;letter-spacing:-.01em;margin-bottom:1.5rem}
+.modal-sep{font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin:1.25rem 0 .75rem;padding-bottom:6px;border-bottom:1px solid var(--border)}
+.flex-between{display:flex;align-items:center;justify-content:space-between}
+.mt10{margin-top:10px}.mt12{margin-top:12px}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="auth-screen">
+  <div class="auth-wrap">
+    <div class="auth-mark">
+      <div class="auth-icon">🚚</div>
+      <div class="auth-brand">Envios Quotes</div>
+    </div>
+    <div class="auth-title">Bem-vindo de volta</div>
+    <div class="auth-sub">Entre com suas credenciais para acessar o painel.</div>
+    <div class="auth-err" id="auth-error"></div>
+    <div class="field"><label>Email</label><input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email"></div>
+    <div class="field"><label>Senha</label><input type="password" id="login-senha" placeholder="••••••••" autocomplete="current-password"></div>
+    <div style="margin-top:1.5rem"><button class="btn primary btn-full" onclick="fazerLogin()">Entrar</button></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-icon">🚚</div>
+      <div class="tb-brand">Envios Quotes</div>
+    </div>
+    <div class="tb-right">
+      <span class="tb-name" id="top-nome"></span>
+      <span class="role-badge" id="top-role"></span>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Alternar tema" id="theme-btn">🌙</button>
+      <button class="btn-out" onclick="fazerLogout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="sidebar">
+      <div class="nav-grp">Operação</div>
+      <div class="nav-item" onclick="setPage('dash')"><span class="nav-ico">◈</span>Dashboard</div>
+      <div class="nav-item active" onclick="setPage('novo')"><span class="nav-ico">＋</span>Novo movimento</div>
+      <div class="nav-item" onclick="setPage('registros')"><span class="nav-ico">≡</span>Registros</div>
+      <!-- admin only -->
+      <div id="nav-admin-block" style="display:none!important">
+        <div class="nav-item" onclick="setPage('falhas')"><span class="nav-ico">⚑</span>Envios perdidos</div>
+        <div class="nav-item" onclick="setPage('destinos')"><span class="nav-ico">◎</span>Destinos</div>
+        <div class="nav-grp" style="margin-top:.75rem">Admin</div>
+        <div class="nav-item" onclick="setPage('usuarios')"><span class="nav-ico">⊙</span>Usuários</div>
+      </div>
+    </div>
+
+    <div class="main">
+
+      <!-- NOVO MOVIMENTO -->
+      <div class="page active" id="page-novo">
+        <div class="page-hdr">
+          <div><div class="page-title">Novo movimento</div><div class="page-sub">Registre um movimento e o sistema sugere o melhor envio.</div></div>
+        </div>
+        <div class="card">
+          <div class="card-sec">Dados do movimento</div>
+          <div class="fg">
+            <div class="field"><label>Destino</label><select id="f-dest-sel" onchange="calcSugestao()"><option value="">— selecione —</option></select></div>
+            <div class="field"><label>Número do movimento</label><input type="text" id="f-num-mov" placeholder="ex: 12345" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+            <div class="field"><label>Controle de venda</label><input type="text" id="f-controle" placeholder="ex: 405060" oninput="this.value=this.value.replace(/[^0-9]/g,'')"></div>
+            <div class="field"><label>Data de criação</label><input type="date" id="f-criacao" onchange="calcSugestao()"></div>
+            <div class="field"><label>Hora de criação</label><input type="time" id="f-hora"></div>
+            <div class="field"><label>Data de entrega ao estoque</label><input type="date" id="f-saida" onchange="calcSugestao()"></div>
+            <div class="field" style="grid-column:1/-1"><label>Observações</label><input type="text" id="f-obs" placeholder="Informações adicionais..."></div>
+          </div>
+          <div class="sug neutral" id="sug-area">
+            <div class="sug-hdr" id="sug-hdr">💡 Análise de envio</div>
+            <div class="sug-body" id="sug-body"></div>
+          </div>
+          <div class="btn-row">
+            <button class="btn ghost" onclick="resetForm()">Limpar</button>
+            <button class="btn primary" onclick="salvarMovimento()">Salvar movimento</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DASHBOARD -->
+      <div class="page" id="page-dash">
+        <div class="page-hdr"><div><div class="page-title">Dashboard</div><div class="page-sub">Visão geral dos envios e desempenho.</div></div></div>
+        <!-- Stats principais -->
+        <div class="stat-row" id="dash-stats"></div>
+        <!-- Gráfico de barras -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem">
+          <div class="card" style="margin-bottom:0">
+            <div class="card-sec">Envios por destino</div>
+            <div id="dash-por-destino" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+          <div class="card" style="margin-bottom:0">
+            <div class="card-sec">Últimos 30 dias — envios perdidos</div>
+            <div id="dash-recentes" style="display:flex;flex-direction:column;gap:8px"></div>
+          </div>
+        </div>
+        <!-- Tabela top perdas -->
+        <div class="card">
+          <div class="card-sec">Destinos com mais perdas</div>
+          <div id="dash-top-perdas"></div>
+        </div>
+      </div>
+
+      <!-- REGISTROS -->
+      <div class="page" id="page-registros">
+        <div class="page-hdr"><div><div class="page-title">Registros</div><div class="page-sub">Histórico completo de movimentos.</div></div></div>
+        <div class="stat-row" id="stats-registros"></div>
+        <div class="filters">
+          <input type="text" id="r-busca" placeholder="Buscar controle, número ou destino..." oninput="renderRegistros()">
+          <select id="r-dest" onchange="renderRegistros()"><option value="">Todos destinos</option></select>
+          <select id="r-status" onchange="renderRegistros()">
+            <option value="">Todos status</option>
+            <option value="ok">No prazo</option>
+            <option value="miss">Envio perdido</option>
+          </select>
+        </div>
+        <div class="tcard"><div class="tw"><table>
+          <thead><tr>
+            <th>Nº Mov.</th><th>Controle</th><th>Destino</th><th>Operador</th>
+            <th>Criado em</th><th>Hora</th><th>Entrega estoque</th>
+            <th>Melhor envio</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="tbody-reg"><tr><td colspan="9" class="loading">Carregando...</td></tr></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- FALHAS -->
+      <div class="page" id="page-falhas">
+        <div class="page-hdr"><div><div class="page-title">Envios perdidos</div><div class="page-sub">Movimentos cuja saída ficou depois de uma ou mais janelas de envio disponíveis.</div></div></div>
+        <div class="tcard"><div class="tw"><table>
+          <thead><tr>
+            <th>Nº Mov.</th><th>Controle</th><th>Destino</th><th>Operador</th>
+            <th>Criado</th><th>Hora</th><th>Entrega estoque</th><th>Melhor envio era</th><th>Janelas perdidas</th>
+          </tr></thead>
+          <tbody id="tbody-falhas"><tr><td colspan="9" class="loading">Carregando...</td></tr></tbody>
+        </table></div></div>
+      </div>
+
+      <!-- DESTINOS -->
+      <div class="page" id="page-destinos">
+        <div class="page-hdr">
+          <div><div class="page-title">Destinos</div><div class="page-sub">Calendário de envio por destino.</div></div>
+          <button class="btn primary" onclick="abrirModalDest()">+ Novo destino</button>
+        </div>
+        <div class="legend" style="margin-bottom:1.25rem">
+          <div class="legend-item"><div class="ldot" style="background:var(--green)"></div>Semanal — toda semana</div>
+          <div class="legend-item"><div class="ldot" style="background:var(--accent)"></div>Quotes — toda semana</div>
+        </div>
+        <div class="dest-grid" id="dest-grid"><div class="loading">Carregando...</div></div>
+      </div>
+
+      <!-- USUÁRIOS -->
+      <div class="page" id="page-usuarios">
+        <div class="page-hdr">
+          <div><div class="page-title">Usuários</div><div class="page-sub">Gerencie os acessos ao sistema.</div></div>
+          <button class="btn primary" onclick="abrirModalUser()">+ Novo usuário</button>
+        </div>
+        <div class="tcard"><div class="tw"><table>
+          <thead><tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Cadastrado em</th><th>Ações</th></tr></thead>
+          <tbody id="tbody-users"><tr><td colspan="5" class="loading">Carregando...</td></tr></tbody>
+        </table></div></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETALHE MOVIMENTO -->
+<div class="modal-bg" id="modal-detalhe">
+  <div class="modal-box" style="max-width:520px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem">
+      <div class="modal-title" style="margin-bottom:0" id="md-titulo">Movimento</div>
+      <button class="btn ghost" style="padding:4px 8px" onclick="fecharModal('modal-detalhe')">✕</button>
+    </div>
+    <div id="md-corpo"></div>
+  </div>
+</div>
+
+<!-- MODAL DESTINO -->
+<div class="modal-bg" id="modal-dest">
+  <div class="modal-box">
+    <div class="modal-title">Cadastrar destino</div>
+    <div class="field"><label>Nome do destino</label><input type="text" id="m-dest-nome" placeholder="ex: BH LOJA 26/A"></div>
+    <div class="modal-sep">Envio semanal <span style="color:var(--green-text)">— toda semana</span></div>
+    <div class="day-picker" id="picker-sem"></div>
+    <div class="modal-sep">Envio quotes <span style="color:var(--accent)">— toda semana</span></div>
+    <div class="day-picker" id="picker-quo"></div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="fecharModal('modal-dest')">Cancelar</button>
+      <button class="btn primary" onclick="salvarDestino()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL USUÁRIO -->
+<div class="modal-bg" id="modal-user">
+  <div class="modal-box">
+    <div class="modal-title">Novo usuário</div>
+    <div class="fg" style="margin-bottom:14px">
+      <div class="field"><label>Nome completo</label><input type="text" id="m-user-nome" placeholder="Nome"></div>
+      <div class="field"><label>Perfil</label><select id="m-user-role"><option value="user">Operador</option><option value="admin">Admin</option></select></div>
+    </div>
+    <div class="field"><label>Email</label><input type="email" id="m-user-email" placeholder="email@exemplo.com"></div>
+    <div class="field"><label>Senha inicial</label><input type="text" id="m-user-senha" placeholder="Mínimo 6 caracteres"></div>
+    <div style="font-size:11px;color:var(--text3);margin-bottom:1.25rem">O usuário pode alterar a senha após o primeiro acesso.</div>
+    <div class="btn-row">
+      <button class="btn ghost" onclick="fecharModal('modal-user')">Cancelar</button>
+      <button class="btn primary" onclick="salvarUsuario()">Criar usuário</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPA_URL='https://fevhyllvfhvzzfhwyjuk.supabase.co';
+const SUPA_ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldmh5bGx2Zmh2enpmaHd5anVrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg4NzEyMTcsImV4cCI6MjA5NDQ0NzIxN30.GJRgEKW1bVWX1957_bKCTO6aVmR_rXWRCmo9-ZJDPiE';
+const SUPA_SERVICE='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZldmh5bGx2Zmh2enpmaHd5anVrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODg3MTIxNywiZXhwIjoyMDk0NDQ3MjE3fQ.CEUCuORT9wfQcqZCjIsT0cpkNYImuaBZhI0JoHFOcb4';
+const{createClient}=supabase;
+const sb=createClient(SUPA_URL,SUPA_ANON,{
+  auth:{
+    autoRefreshToken:true,
+    persistSession:true,
+    detectSessionInUrl:false,
+    storageKey:'envios-quotes-session'
+  }
+});
+const DIAS_FULL=['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+const DIAS_SHORT=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+let currentUser=null,currentRole=null,destinos=[];
+let semSelD=[],quoSelD=[];
+let _movMap={};
+
+/* ── TEMA ── */
+function toggleTheme(){
+  const html=document.documentElement;
+  const isDark=html.getAttribute('data-theme')==='dark';
+  html.setAttribute('data-theme',isDark?'light':'dark');
+  document.getElementById('theme-btn').textContent=isDark?'🌙':'☀️';
+  localStorage.setItem('mov-theme',isDark?'light':'dark');
+}
+(function(){
+  const saved=localStorage.getItem('mov-theme')||'dark';
+  document.documentElement.setAttribute('data-theme',saved);
+  document.addEventListener('DOMContentLoaded',()=>{
+    const btn=document.getElementById('theme-btn');
+    if(btn)btn.textContent=saved==='dark'?'🌙':'☀️';
+  });
+})();
+
+/* ── AUTH ── */
+async function fazerLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const senha=document.getElementById('login-senha').value;
+  const err=document.getElementById('auth-error');
+  err.style.display='none';
+  const{data,error}=await sb.auth.signInWithPassword({email,password:senha});
+  if(error){err.textContent='Email ou senha incorretos.';err.style.display='block';return;}
+  // Salva credenciais para re-login silencioso
+  localStorage.setItem('eq_u', btoa(email));
+  localStorage.setItem('eq_p', btoa(senha));
+  await iniciarApp(data.user);
+}
+async function fazerLogout(){
+  localStorage.removeItem('eq_u');
+  localStorage.removeItem('eq_p');
+  await sb.auth.signOut();
+  document.getElementById('app-screen').style.display='none';
+  document.getElementById('auth-screen').style.display='flex';
+  currentUser=null;currentRole=null;
+}
+async function iniciarApp(user){
+  currentUser=user;
+  const{data:p}=await sb.schema('logistica').from('usuarios').select('*').eq('id',user.id).single();
+  currentRole=p?.role||'user';
+  document.getElementById('auth-screen').style.display='none';
+  document.getElementById('app-screen').style.display='block';
+  // Mostra nome do operador logado
+  document.getElementById('top-nome').textContent=p?.nome||user.email;
+  const rb=document.getElementById('top-role');
+  rb.textContent=currentRole==='admin'?'Admin':'Operador';
+  rb.className='role-badge '+(currentRole==='admin'?'admin':'user');
+  // Admin vê tudo; operador só vê Novo e Registros
+  const navAdmin=document.getElementById('nav-admin-block');
+  if(currentRole==='admin'){navAdmin.style.cssText='display:block!important';}else{navAdmin.style.cssText='display:none!important';}
+  await carregarDestinos();
+  setPage('novo');
+}
+async function tentarAutoLogin(){
+  // 1. Tenta sessão ativa
+  const{data:s}=await sb.auth.getSession();
+  if(s?.session?.user){await iniciarApp(s.session.user);return;}
+  // 2. Tenta refresh do token
+  const{data:r}=await sb.auth.refreshSession();
+  if(r?.session?.user){await iniciarApp(r.session.user);return;}
+  // 3. Tenta re-login com credenciais salvas
+  const eu=localStorage.getItem('eq_u');
+  const ep=localStorage.getItem('eq_p');
+  if(eu&&ep){
+    try{
+      const{data:d,error}=await sb.auth.signInWithPassword({email:atob(eu),password:atob(ep)});
+      if(d?.user&&!error){await iniciarApp(d.user);return;}
+    }catch(e){}
+  }
+  // 4. Mostra tela de login
+  document.getElementById('auth-screen').style.display='flex';
+}
+tentarAutoLogin();
+document.getElementById('login-senha').addEventListener('keydown',e=>{if(e.key==='Enter')fazerLogin();});
+
+/* ── NAV ── */
+function setPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(el=>{if(el.getAttribute('onclick')?.includes("'"+p+"'"))el.classList.add('active');});
+  if(p==='dash')renderDash();
+  if(p==='registros')renderRegistros();
+  if(p==='falhas')renderFalhas();
+  if(p==='destinos')renderDestinos();
+  if(p==='usuarios')renderUsuarios();
+}
+
+/* ── DATAS ── */
+function parseLocalDate(s){if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);}
+function fmtDate(d){if(!d)return'—';return d.toLocaleDateString('pt-BR');}
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function isoDate(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+
+const CORTE_HORA = 15; // após 16h o dia de envio é ignorado
+
+function getEnviosApos(dest,fromDate,maxDias=90,horaStr=null){
+  // Se há hora de criação e for >= 16h, o próprio dia (i=0) não conta
+  const [horaH,horaM] = horaStr ? horaStr.split(':').map(Number) : [0,0];
+  const minutos = horaH*60+horaM;
+  const aposCorte = horaStr && minutos >= 15*60+30;
+  const byDate={};
+  for(let i=0;i<=maxDias;i++){
+    // Se criado após as 16h, pula o dia atual (i=0)
+    if(i===0 && aposCorte) continue;
+    const d=addDays(fromDate,i);const dow=d.getDay();const k=isoDate(d);
+    if(dest.semanal?.includes(dow)){if(!byDate[k])byDate[k]={date:d,tipos:[],dow};if(!byDate[k].tipos.includes('semanal'))byDate[k].tipos.push('semanal');}
+    if(dest.quotes?.includes(dow)){if(!byDate[k])byDate[k]={date:d,tipos:[],dow};if(!byDate[k].tipos.includes('quotes'))byDate[k].tipos.push('quotes');}
+  }
+  return Object.values(byDate).sort((a,b)=>a.date-b.date);
+}
+
+/* ── DESTINOS ── */
+async function carregarDestinos(){
+  const{data}=await sb.schema('logistica').from('destinos').select('*').order('nome');
+  destinos=data||[];popularSelectDestinos();
+}
+function popularSelectDestinos(){
+  ['f-dest-sel','r-dest'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    const cur=el.value;
+    el.innerHTML=id==='r-dest'?'<option value="">Todos destinos</option>':'<option value="">— selecione —</option>';
+    destinos.forEach(d=>{const o=document.createElement('option');o.value=d.id;o.textContent=d.nome;el.appendChild(o);});
+    el.value=cur;
+  });
+}
+function renderDestinos(){
+  const grid=document.getElementById('dest-grid');
+  if(!destinos.length){grid.innerHTML='<p class="empty">Nenhum destino cadastrado</p>';return;}
+  grid.innerHTML=destinos.map(d=>{
+    const sem=(d.semanal||[]).map(i=>`<span class="pill semanal">${DIAS_FULL[i]}</span>`).join('');
+    const quo=(d.quotes||[]).map(i=>`<span class="pill quotes">${DIAS_FULL[i]}</span>`).join('');
+    const del=currentRole==='admin'?`<button class="dest-del" onclick="deletarDestino(${d.id})">✕</button>`:'';
+    return`<div class="dest-card"><div class="dest-hdr"><div class="dest-name">${d.nome}</div>${del}</div>${sem?`<div class="dest-sec"><div class="dest-tl sem">Semanal</div><div class="pills">${sem}</div></div>`:''}${quo?`<div class="dest-sec"><div class="dest-tl quo">Quotes</div><div class="pills">${quo}</div></div>`:''}</div>`;
+  }).join('');
+}
+function buildDayPickers(){
+  ['picker-sem','picker-quo'].forEach((id,ti)=>{
+    const arr=ti===0?semSelD:quoSelD;const cls=ti===0?'sel-sem':'sel-quo';
+    document.getElementById(id).innerHTML=DIAS_FULL.map((n,i)=>`<button type="button" class="day-btn ${arr.includes(i)?cls:''}" onclick="toggleDay(${ti},${i})">${n}</button>`).join('');
+  });
+}
+function toggleDay(tipo,idx){const arr=tipo===0?semSelD:quoSelD;const pos=arr.indexOf(idx);pos>-1?arr.splice(pos,1):arr.push(idx);buildDayPickers();}
+function abrirModalDest(){semSelD=[];quoSelD=[];document.getElementById('m-dest-nome').value='';buildDayPickers();document.getElementById('modal-dest').style.display='flex';}
+async function salvarDestino(){
+  const nome=document.getElementById('m-dest-nome').value.trim();
+  if(!nome){alert('Informe o nome do destino.');return;}
+  if(!semSelD.length&&!quoSelD.length){alert('Selecione ao menos um dia.');return;}
+  const{error}=await sb.schema('logistica').from('destinos').insert({nome,semanal:[...semSelD].sort((a,b)=>a-b),quotes:[...quoSelD].sort((a,b)=>a-b)});
+  if(error){alert('Erro: '+error.message);return;}
+  fecharModal('modal-dest');await carregarDestinos();renderDestinos();
+}
+async function deletarDestino(id){if(!confirm('Remover este destino?'))return;await sb.schema('logistica').from('destinos').delete().eq('id',id);await carregarDestinos();renderDestinos();}
+
+/* ── SUGESTÃO ── */
+function calcSugestao(){
+  const destId=document.getElementById('f-dest-sel').value;
+  const criacaoStr=document.getElementById('f-criacao').value;
+  const saidaStr=document.getElementById('f-saida').value;
+  const area=document.getElementById('sug-area');
+  if(!destId||!criacaoStr){area.style.display='none';return;}
+  const dest=destinos.find(d=>d.id==destId);
+  if(!dest){area.style.display='none';return;}
+  const dataCriacao=parseLocalDate(criacaoStr);
+  const dowCriacao=dataCriacao.getDay();
+  const horaStr=document.getElementById('f-hora').value||null;
+  const envios=getEnviosApos(dest,dataCriacao,90,horaStr);
+  area.style.display='block';
+  if(!envios.length){area.className='sug neutral';document.getElementById('sug-hdr').innerHTML='⚠ Nenhuma janela configurada';document.getElementById('sug-body').innerHTML='';return;}
+  const melhor=envios[0];const proximos=envios.slice(0,4);
+  let boxClass='neutral',hdr='💡 Análise de envio',perdidosHtml='';
+  if(saidaStr){
+    const dataSaida=parseLocalDate(saidaStr);const dowSaida=dataSaida.getDay();
+    const isValida=envios.some(e=>isoDate(e.date)===isoDate(dataSaida));
+    const perdidos=envios.filter(e=>e.date<dataSaida);
+    if(perdidos.length===0&&isValida){boxClass='ok';hdr='✓ Saindo no melhor dia possível';}
+    else if(perdidos.length>0){boxClass='bad';hdr=`✗ ${perdidos.length} janela(s) de envio perdida(s)`;perdidosHtml=`<div class="mt10"><div class="rl">Janelas perdidas</div><div class="pills">${perdidos.map(e=>`<span class="pill missed">${fmtDate(e.date)} ${DIAS_SHORT[e.dow]} (${e.tipos.join('/')})</span>`).join('')}</div></div>`;}
+    else{boxClass='bad';hdr=`✗ ${DIAS_FULL[dowSaida]} não é dia de envio para este destino`;}
+  }
+  const proxHtml=proximos.map(e=>`<span class="pill ${e.tipos.includes('semanal')&&e.tipos.includes('quotes')?'quotes':e.tipos[0]}">${fmtDate(e.date)} ${DIAS_SHORT[e.dow]}</span>`).join('');
+  area.className='sug '+boxClass;
+  document.getElementById('sug-hdr').innerHTML=hdr;
+  document.getElementById('sug-body').innerHTML=`<div class="sug-cells"><div class="sug-cell"><div class="sug-cl">Criação</div><div class="sug-cv">${fmtDate(dataCriacao)}</div><div class="sug-cs">${DIAS_FULL[dowCriacao]}</div></div><div class="sug-cell"><div class="sug-cl">Melhor dia de saída</div><div class="sug-cv">${fmtDate(melhor.date)}</div><div class="sug-cs">${DIAS_FULL[melhor.dow]} — ${melhor.tipos.join('/')}</div></div><div class="sug-cell"><div class="sug-cl">Próximas janelas</div><div class="pills" style="margin-top:4px">${proxHtml}</div></div></div>${perdidosHtml}`;
+}
+
+/* ── SALVAR ── */
+async function salvarMovimento(){
+  const destId=document.getElementById('f-dest-sel').value;
+  const criacaoStr=document.getElementById('f-criacao').value;
+  const saidaStr=document.getElementById('f-saida').value;
+  const controle=document.getElementById('f-controle').value.trim();
+  const numMov=document.getElementById('f-num-mov').value.trim();
+  const obs=document.getElementById('f-obs').value.trim();
+  const hora=document.getElementById('f-hora').value||null;
+  if(!destId||!criacaoStr||!controle){alert('Preencha destino, data de criação e controle de venda.');return;}
+  const dest=destinos.find(d=>d.id==destId);
+  const dataCriacao=parseLocalDate(criacaoStr);
+  const envios=getEnviosApos(dest,dataCriacao,90,hora);
+  const melhor=envios[0]||null;
+  let saidaValida=null,perdidos=[],dowSaida=null;
+  if(saidaStr){const dataSaida=parseLocalDate(saidaStr);dowSaida=dataSaida.getDay();saidaValida=envios.some(e=>isoDate(e.date)===isoDate(dataSaida));perdidos=envios.filter(e=>e.date<dataSaida).map(e=>({data:isoDate(e.date),dow:e.dow,tipo:e.tipos.join('/')}));}
+  const{error}=await sb.schema('logistica').from('movimentos').insert({
+    user_id:currentUser.id,dest_id:parseInt(destId),dest_nome:dest.nome,
+    controle,num_movimento:numMov||null,hora_criacao:hora,
+    criacao:criacaoStr,dow_criacao:dataCriacao.getDay(),
+    saida:saidaStr||null,dow_saida:dowSaida,
+    melhor_envio:melhor?isoDate(melhor.date):null,
+    melhor_dow:melhor?melhor.dow:null,melhor_tipo:melhor?melhor.tipos.join('/'):null,
+    saida_valida:saidaValida,perdidos,obs
+  });
+  if(error){alert('Erro ao salvar: '+error.message);return;}
+  alert('Movimento salvo com sucesso!');resetForm();
+}
+function resetForm(){['f-dest-sel','f-criacao','f-hora','f-saida','f-controle','f-num-mov','f-obs'].forEach(id=>document.getElementById(id).value='');document.getElementById('sug-area').style.display='none';}
+
+/* helper: célula de 2 linhas */
+function td2(main,sub){return`<div class="td2"><div class="td2-main">${main}</div><div class="td2-sub">${sub}</div></div>`;}
+
+/* ── REGISTROS ── */
+async function renderRegistros(){
+  const busca=document.getElementById('r-busca')?.value?.toLowerCase()||'';
+  const fd=document.getElementById('r-dest')?.value||'';
+  const fs=document.getElementById('r-status')?.value||'';
+  let q=sb.schema('logistica').from('movimentos').select('*, usuarios(nome)').order('created_at',{ascending:false});
+  if(currentRole!=='admin')q=q.eq('user_id',currentUser.id);
+  if(fd)q=q.eq('dest_id',fd);
+  const{data:rows=[]}=await q;
+  const filtered=rows.filter(m=>{
+    const b=busca;
+    if(b&&!m.controle.toLowerCase().includes(b)&&!m.dest_nome.toLowerCase().includes(b)&&!(m.num_movimento||'').toLowerCase().includes(b))return false;
+    if(fs==='ok'&&m.perdidos.length>0)return false;
+    if(fs==='miss'&&m.perdidos.length===0)return false;
+    return true;
+  });
+  const total=rows.length,miss=rows.filter(m=>m.perdidos.length>0).length;
+  document.getElementById('stats-registros').innerHTML=`
+    <div class="stat-card total"><div class="stat-n">${total}</div><div class="stat-l">Total movimentos</div></div>
+    <div class="stat-card ok"><div class="stat-n">${total-miss}</div><div class="stat-l">No prazo</div></div>
+    <div class="stat-card miss"><div class="stat-n">${miss}</div><div class="stat-l">Com envio perdido</div></div>`;
+  const tbody=document.getElementById('tbody-reg');
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="10" class="empty">Nenhum registro encontrado</td></tr>';return;}
+  tbody.innerHTML=filtered.map(m=>{
+    const hasMiss=m.perdidos.length>0;
+    const vi=m.saida?(m.saida_valida?' <span style="color:var(--green);font-size:11px">✓</span>':' <span style="color:var(--red);font-size:11px">✗</span>'):'';
+    const criadoStr=m.criacao?new Date(m.criacao+'T12:00').toLocaleDateString('pt-BR'):'—';
+    const saidaStr=m.saida?new Date(m.saida+'T12:00').toLocaleDateString('pt-BR'):'—';
+    const melhorStr=m.melhor_envio?new Date(m.melhor_envio+'T12:00').toLocaleDateString('pt-BR'):'—';
+    const melhorSub=m.melhor_envio?`${DIAS_FULL[m.melhor_dow]} — ${m.melhor_tipo}`:'';
+    _movMap[m.id]=m;
+    const obsIcon=m.obs?'<span title="Tem observação" style="margin-left:6px;font-size:11px;color:var(--accent)">●</span>':'';
+    return`<tr style="cursor:pointer" onclick="abrirDetalhe(_movMap[${m.id}])">
+      <td><span class="mono" style="font-weight:600;font-size:12px">${m.num_movimento||'—'}</span></td>
+      <td><span class="mono" style="font-weight:500">${m.controle}</span>${obsIcon}</td>
+      <td style="font-weight:500">${m.dest_nome}</td>
+      <td style="color:var(--text2);font-size:12px">${m.usuarios?.nome||'—'}</td>
+      <td>${td2(criadoStr,DIAS_FULL[m.dow_criacao])}</td>
+      <td><span class="mono" style="font-size:12px;color:var(--text2)">${m.hora_criacao?m.hora_criacao.slice(0,5):'—'}</span></td>
+      <td>${td2(saidaStr+(m.saida?vi:''),m.dow_saida!=null?DIAS_FULL[m.dow_saida]:'')}</td>
+      <td>${td2(melhorStr,melhorSub)}</td>
+      <td>${hasMiss?`<span class="badge miss">✗ Perdido (${m.perdidos.length})</span>`:'<span class="badge ok">✓ OK</span>'}</td>
+      ${currentRole==='admin'?`<td><button class="btn danger" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();apagarMovimento(${m.id})">Apagar</button></td>`:'<td></td>'}
+    </tr>`;
+  }).join('');
+}
+
+/* ── FALHAS ── */
+async function renderFalhas(){
+  let q=sb.schema('logistica').from('movimentos').select('*, usuarios(nome)').order('created_at',{ascending:false});
+  if(currentRole!=='admin')q=q.eq('user_id',currentUser.id);
+  const{data:rows=[]}=await q;
+  const falhas=rows.filter(m=>m.perdidos.length>0);
+  const tbody=document.getElementById('tbody-falhas');
+  if(!falhas.length){tbody.innerHTML='<tr><td colspan="9" class="empty">Nenhum envio perdido 🎉</td></tr>';return;}
+  tbody.innerHTML=falhas.map(m=>{
+    const criadoStr=m.criacao?new Date(m.criacao+'T12:00').toLocaleDateString('pt-BR'):'—';
+    const saidaStr=m.saida?new Date(m.saida+'T12:00').toLocaleDateString('pt-BR'):'—';
+    const melhorStr=m.melhor_envio?new Date(m.melhor_envio+'T12:00').toLocaleDateString('pt-BR'):'—';
+    const melhorSub=m.melhor_envio?`${DIAS_FULL[m.melhor_dow]} — ${m.melhor_tipo}`:'';
+    _movMap[m.id]=m;
+    const obsIcon=m.obs?'<span title="Tem observação" style="margin-left:6px;font-size:11px;color:var(--accent)">●</span>':'';
+    return`<tr style="cursor:pointer" onclick="abrirDetalhe(_movMap[${m.id}])">
+      <td><span class="mono" style="font-weight:600;font-size:12px">${m.num_movimento||'—'}</span></td>
+      <td><span class="mono" style="font-weight:500">${m.controle}</span>${obsIcon}</td>
+      <td style="font-weight:500">${m.dest_nome}</td>
+      <td style="color:var(--text2);font-size:12px">${m.usuarios?.nome||'—'}</td>
+      <td>${td2(criadoStr,DIAS_FULL[m.dow_criacao])}</td>
+      <td><span class="mono" style="font-size:12px;color:var(--text2)">${m.hora_criacao?m.hora_criacao.slice(0,5):'—'}</span></td>
+      <td>${td2(saidaStr,m.dow_saida!=null?DIAS_FULL[m.dow_saida]:'')}</td>
+      <td>${td2(melhorStr,melhorSub)}</td>
+      <td><div class="pills">${m.perdidos.map(p=>`<span class="pill missed">${new Date(p.data+'T12:00').toLocaleDateString('pt-BR')} ${DIAS_SHORT[p.dow]} (${p.tipo})</span>`).join('')}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+/* ── USUÁRIOS ── */
+async function renderUsuarios(){
+  const{data:users=[]}=await sb.schema('logistica').from('usuarios').select('*').order('created_at');
+  const tbody=document.getElementById('tbody-users');
+  if(!users.length){tbody.innerHTML='<tr><td colspan="5" class="empty">Nenhum usuário</td></tr>';return;}
+  tbody.innerHTML=users.map(u=>`<tr>
+    <td style="font-weight:600">${u.nome}</td>
+    <td style="color:var(--text2);font-size:12px">${u.email}</td>
+    <td><span class="badge ${u.role==='admin'?'admin':'user'}">${u.role==='admin'?'Admin':'Operador'}</span></td>
+    <td style="color:var(--text3);font-size:11px">${new Date(u.created_at).toLocaleDateString('pt-BR')}</td>
+    <td>${u.id!==currentUser.id?`<button class="btn danger" style="padding:5px 12px;font-size:12px" onclick="removerUsuario('${u.id}','${u.email}')">Remover</button>`:'<span style="color:var(--text3);font-size:11px">você</span>'}</td>
+  </tr>`).join('');
+}
+function abrirModalUser(){['m-user-nome','m-user-email','m-user-senha'].forEach(id=>document.getElementById(id).value='');document.getElementById('m-user-role').value='user';document.getElementById('modal-user').style.display='flex';}
+async function salvarUsuario(){
+  const nome=document.getElementById('m-user-nome').value.trim();
+  const email=document.getElementById('m-user-email').value.trim();
+  const senha=document.getElementById('m-user-senha').value;
+  const role=document.getElementById('m-user-role').value;
+  if(!nome||!email||!senha){alert('Preencha todos os campos.');return;}
+  if(senha.length<6){alert('Senha mínima: 6 caracteres.');return;}
+  const res=await fetch(`${SUPA_URL}/auth/v1/admin/users`,{method:'POST',headers:{'apikey':SUPA_SERVICE,'Authorization':'Bearer '+SUPA_SERVICE,'Content-Type':'application/json'},body:JSON.stringify({email,password:senha,email_confirm:true})});
+  const created=await res.json();
+  if(!created.id){alert('Erro: '+(created.message||JSON.stringify(created)));return;}
+  const{error}=await sb.schema('logistica').from('usuarios').insert({id:created.id,nome,email,role});
+  if(error){alert('Erro no perfil: '+error.message);return;}
+  alert(`Usuário "${nome}" criado!`);fecharModal('modal-user');renderUsuarios();
+}
+async function removerUsuario(id,email){
+  if(!confirm(`Remover o usuário ${email}?`))return;
+  await fetch(`${SUPA_URL}/auth/v1/admin/users/${id}`,{method:'DELETE',headers:{'apikey':SUPA_SERVICE,'Authorization':'Bearer '+SUPA_SERVICE}});
+  await sb.schema('logistica').from('usuarios').delete().eq('id',id);renderUsuarios();
+}
+async function apagarMovimento(id){
+  if(!confirm('Apagar este movimento? Esta ação não pode ser desfeita.'))return;
+  const{error}=await sb.schema('logistica').from('movimentos').delete().eq('id',id);
+  if(error){alert('Erro ao apagar: '+error.message);return;}
+  renderRegistros();
+}
+
+function abrirDetalhe(m){
+  document.getElementById('md-titulo').textContent=m.controle+(m.num_movimento?' — '+m.num_movimento:'');
+  const obs=m.obs||'';
+  const criadoStr=m.criacao?new Date(m.criacao+'T12:00').toLocaleDateString('pt-BR'):'—';
+  const saidaStr=m.saida?new Date(m.saida+'T12:00').toLocaleDateString('pt-BR'):'—';
+  const melhorStr=m.melhor_envio?new Date(m.melhor_envio+'T12:00').toLocaleDateString('pt-BR'):'—';
+  document.getElementById('md-corpo').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem">
+      <div class="sug-cell"><div class="sug-cl">Destino</div><div class="sug-cv">${m.dest_nome}</div></div>
+      <div class="sug-cell"><div class="sug-cl">Operador</div><div class="sug-cv">${m.usuarios?.nome||'—'}</div></div>
+      <div class="sug-cell"><div class="sug-cl">Criado em</div><div class="sug-cv">${criadoStr}</div><div class="sug-cs">${DIAS_FULL[m.dow_criacao]||''} ${m.hora_criacao?'às '+m.hora_criacao.slice(0,5):''}</div></div>
+      <div class="sug-cell"><div class="sug-cl">Saída</div><div class="sug-cv">${saidaStr}</div><div class="sug-cs">${m.dow_saida!=null?DIAS_FULL[m.dow_saida]:''}</div></div>
+      <div class="sug-cell"><div class="sug-cl">Melhor envio</div><div class="sug-cv">${melhorStr}</div><div class="sug-cs">${m.melhor_envio?DIAS_FULL[m.melhor_dow]+' — '+m.melhor_tipo:''}</div></div>
+      <div class="sug-cell"><div class="sug-cl">Status</div><div style="margin-top:4px">${m.perdidos.length>0?'<span class="badge miss">✗ Perdido ('+m.perdidos.length+')</span>':'<span class="badge ok">✓ No prazo</span>'}</div></div>
+    </div>
+    ${m.perdidos.length>0?`<div style="margin-bottom:1rem"><div class="sug-cl" style="margin-bottom:6px">Janelas perdidas</div><div class="pills">${m.perdidos.map(p=>'<span class="pill missed">'+new Date(p.data+'T12:00').toLocaleDateString('pt-BR')+' '+DIAS_SHORT[p.dow]+' ('+p.tipo+')</span>').join('')}</div></div>`:''}
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:14px">
+      <div class="sug-cl" style="margin-bottom:6px">Observações</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.6">${obs||'<span style="color:var(--text3)">Nenhuma observação registrada.</span>'}</div>
+    </div>`;
+  document.getElementById('modal-detalhe').style.display='flex';
+}
+
+async function renderDash(){
+  let q=sb.schema('logistica').from('movimentos').select('*, usuarios(nome)').order('created_at',{ascending:false});
+  if(currentRole!=='admin') q=q.eq('user_id',currentUser.id);
+  const{data:rows=[]}=await q;
+
+  const total=rows.length;
+  const noPrazo=rows.filter(m=>m.perdidos.length===0).length;
+  const perdidos=rows.filter(m=>m.perdidos.length>0).length;
+  const taxaOk=total?Math.round(noPrazo/total*100):0;
+
+  // Stats
+  document.getElementById('dash-stats').innerHTML=`
+    <div class="stat-card total"><div class="stat-n">${total}</div><div class="stat-l">Total movimentos</div></div>
+    <div class="stat-card ok"><div class="stat-n">${noPrazo} <span style="font-size:16px">(${taxaOk}%)</span></div><div class="stat-l">No prazo</div></div>
+    <div class="stat-card miss"><div class="stat-n">${perdidos} <span style="font-size:16px">(${total?Math.round(perdidos/total*100):0}%)</span></div><div class="stat-l">Com envio perdido</div></div>`;
+
+  // Por destino
+  const porDest={};
+  rows.forEach(m=>{
+    if(!porDest[m.dest_nome])porDest[m.dest_nome]={total:0,perdidos:0};
+    porDest[m.dest_nome].total++;
+    if(m.perdidos.length>0)porDest[m.dest_nome].perdidos++;
+  });
+  const destEntries=Object.entries(porDest).sort((a,b)=>b[1].total-a[1].total);
+  const maxTotal=destEntries[0]?.[1]?.total||1;
+  document.getElementById('dash-por-destino').innerHTML=destEntries.length?destEntries.map(([nome,v])=>{
+    const pct=Math.round(v.total/maxTotal*100);
+    const perdPct=v.total?Math.round(v.perdidos/v.total*100):0;
+    return`<div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+        <span style="font-weight:500;color:var(--text)">${nome}</span>
+        <span style="color:var(--text2)">${v.total} mov. · <span style="color:${v.perdidos>0?'var(--red)':'var(--green)'}">${perdPct}% perdido</span></span>
+      </div>
+      <div style="background:var(--surface2);border-radius:4px;height:6px;overflow:hidden">
+        <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:4px"></div>
+      </div>
+    </div>`;
+  }).join(''):'<div class="empty">Sem dados</div>';
+
+  // Últimos 30 dias
+  const hoje=new Date();const trintaDias=new Date(hoje);trintaDias.setDate(hoje.getDate()-30);
+  const recentes=rows.filter(m=>m.criacao&&new Date(m.criacao+'T12:00')>=trintaDias);
+  const recentesPerdidos=recentes.filter(m=>m.perdidos.length>0).length;
+  const recentesOk=recentes.length-recentesPerdidos;
+  document.getElementById('dash-recentes').innerHTML=`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;color:var(--text2)">Total no período</span>
+      <span style="font-weight:600;font-family:var(--mono)">${recentes.length}</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;color:var(--green-text)">✓ No prazo</span>
+      <span style="font-weight:600;font-family:var(--mono);color:var(--green)">${recentesOk}</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+      <span style="font-size:13px;color:var(--red-text)">✗ Envios perdidos</span>
+      <span style="font-weight:600;font-family:var(--mono);color:var(--red)">${recentesPerdidos}</span>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0">
+      <span style="font-size:13px;color:var(--text2)">Taxa de sucesso</span>
+      <span style="font-weight:600;font-family:var(--mono);color:${recentesOk/Math.max(recentes.length,1)>=0.8?'var(--green)':'var(--red)'}">${recentes.length?Math.round(recentesOk/recentes.length*100):0}%</span>
+    </div>`;
+
+  // Top perdas por destino
+  const topPerdas=destEntries.filter(([,v])=>v.perdidos>0).sort((a,b)=>b[1].perdidos-a[1].perdidos).slice(0,5);
+  document.getElementById('dash-top-perdas').innerHTML=topPerdas.length?`
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr>
+        <th style="text-align:left;padding:8px 10px;font-size:10px;font-weight:600;color:var(--th-text);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);background:var(--th-bg)">Destino</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10px;font-weight:600;color:var(--th-text);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);background:var(--th-bg)">Total mov.</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10px;font-weight:600;color:var(--th-text);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);background:var(--th-bg)">Perdidos</th>
+        <th style="text-align:center;padding:8px 10px;font-size:10px;font-weight:600;color:var(--th-text);text-transform:uppercase;letter-spacing:.07em;border-bottom:1px solid var(--border);background:var(--th-bg)">Taxa perda</th>
+      </tr></thead>
+      <tbody>${topPerdas.map(([nome,v])=>`<tr>
+        <td style="padding:10px;border-bottom:1px solid var(--border);font-weight:500">${nome}</td>
+        <td style="padding:10px;border-bottom:1px solid var(--border);text-align:center;font-family:var(--mono)">${v.total}</td>
+        <td style="padding:10px;border-bottom:1px solid var(--border);text-align:center;font-family:var(--mono);color:var(--red)">${v.perdidos}</td>
+        <td style="padding:10px;border-bottom:1px solid var(--border);text-align:center;font-family:var(--mono);color:var(--red)">${Math.round(v.perdidos/v.total*100)}%</td>
+      </tr>`).join('')}</tbody>
+    </table>`:'<div class="empty">Nenhuma perda registrada 🎉</div>';
+}
+function fecharModal(id){document.getElementById(id).style.display='none';}
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.style.display='none';}));
+</script>
+</body>
+</html>
